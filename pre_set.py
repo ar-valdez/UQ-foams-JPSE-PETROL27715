@@ -2,8 +2,8 @@
 # Name           : pre_set.py
 # Author         : Andres Valdez
 # Version        : 1.0
-# Description    : required packages to visualize data
-# Data	         : 303-24-2022
+# Description    : Some required packages
+# Data	         : 03-24-2022
 # ****************************************************************************
 
 from __future__ import unicode_literals

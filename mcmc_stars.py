@@ -3,7 +3,7 @@
 # Author         : Andres Valdez - Bernardo Rocha
 # Version        : 1.0
 # Description    : performs mcmc sampling using pymc3.
-#                  valid only for STARS non-Newtonian
+#                  valid only for STARS Newtonian and non-Newtonian
 # Data           : 03-24-2022
 # ****************************************************************************
 

@@ -11,14 +11,15 @@ The code is tested with the next libraries:
 4. Theano version 1.0.5 (Invese UQ)
 5. lmfit version 1.0.2 (deterministic Inverse problem)
 
-There are three demo files **input_par_Alvarez2001.dat** (here you have all the
-core parameters), while **Synthetic.dat** and **Smooth.dat** (contains the two
-synthetic data points used in \cite{Valdez2021}).
+# Description
+The Core parameters are listed in input_par_Alvarez2001.dat; the experimental
+records for foam quality and apparent viscosity (or pressure drop) can be found
+here Synthetic.dat or here Smooth.dat.
 ---
 
 # Contact
 Andres Valdez, email: arvaldez@psu.edu
-
+Bernardo Rocha, email: bernardomartinsrocha@ice.ufjf.br
 
 ---
 # How to cite

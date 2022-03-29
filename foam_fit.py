@@ -3,7 +3,7 @@
 # Author         : Andres Valdez - Bernardo Rocha
 # Version        : 1.0
 # Description    : (deterministic) Fitting of different foam model to experimental data (fg, muapp)
-# Data           : 27-04-2020
+# Data           : 03-24-2022
 # ****************************************************************************
 
 from pre_set import *
