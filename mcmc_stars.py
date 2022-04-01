@@ -314,27 +314,26 @@ path = '/media/valdez/data/local_res/uq_res/'
 
 if __name__ == "__main__":
     
-    if len(sys.argv) < 5:
-        print('Usage: [mcmc_stars.py] [foam_model] [test_case] [test_type] [type_fit]')
-        print('foam_model: CMG-STARS or STARS-FULL' )
-        print('test_case: Synthetic or Smooth')
-        print('test_type: Complete or Reduced (Only for STARS-FULL)')
-        print('type_fit :', ['mu_fg_fit','mrf_fit','full_fit'])
-        print(' ')
-        sys.exit()
-    
     t0 = time.process_time() # Here start count time
     
-    foam_model = sys.argv[1]
-    test_case  = sys.argv[2]
-    test_type  = sys.argv[3]
-    type_fit   = sys.argv[4]
+    # Define the foam model to study
+    # CMG-STARS :: Newtonian just Dry out
+    # STARS-FULL :: non-Newtonian Dry out + Shear thinning
+    foam_model = 'STARS-FULL'
     
-    if(foam_model not in ['CMG-STARS','STARS-FULL'] ):
-        print('Foam model not implemented')
-        print('Available foam models:','CMG-STARS','STARS-FULL')
-        sys.exit()
-
+    # Define the data to upload (Synthetic or Smooth)
+    test_case  = "Synthetic"
+    
+    # If the parameter fmcap is fixed then set test_type as "Reduced", otherwise
+    # set test_type as "Complete". For simplicity the code works for "Reduced" fit
+    test_type  = "Reduced"
+    
+    # Define the objective function
+    # OF1 :: mu_fg_fit
+    # OF2 :: mrf_fit
+    # OF3 :: full_fit
+    type_fit   = "full_fit"
+    
     # Get labels and pointers for files
     model_name , param_labels = model_labels(foam_model)
     param_file , data_file , nmax , b , dummy = files_dataset(test_case)
