@@ -7,16 +7,211 @@
 # Data           : 03-24-2022
 # ****************************************************************************
 
-from pre_set import *
+from __future__ import unicode_literals
+import os, sys
+import numpy as np
+import scipy as scp
+import matplotlib as mpl
+import time
+
+import matplotlib.pyplot as plt
+import matplotlib.mlab as mlab
+
+#For 0.49\textwidth figs works ok
+mpl.rcParams['axes.labelsize']  = 14
+mpl.rcParams['xtick.labelsize'] = 14
+mpl.rcParams['ytick.labelsize'] = 14
+mpl.rcParams['legend.fontsize'] = 12
+mpl.rcParams['text.usetex']     = True
+mpl.rcParams['font.family']     = 'serif'
+
+from scipy import optimize
+
 import pymc3 as pmc
 import arviz as arz
 import theano.tensor as tt
 from theano.compile.ops import as_op
-from fmf_models import *
+
+np.random.seed(1234)
+
+########################################################################
+# foam model definitions
+########################################################################
+class fmf_models(object):
+    """
+    This class contains all the methods to analyze different foam models.
+    """
+    def __init__(self,core_params):
+        self.swc, self.sgr      = core_params[0], core_params[1]
+        self.nw,  self.ng       = core_params[2], core_params[3]
+        self.kuw, self.kug      = core_params[4], core_params[5]
+        self.muw, self.mug      = core_params[6], core_params[7]
+        self.u,   self.sigma_wg = core_params[8], core_params[9]
+    
+    def frac_flow(self,sw):
+        """
+        This function returns the fractional flow theory functions
+        """
+        if(isinstance(sw, float)):
+            sw = np.array([sw])
+        
+        se = np.zeros(len(sw))
+        for j in range(len(sw)):
+            if(sw[j] < self.swc):
+                se[j] = 0.0
+            elif(sw[j] > 1.0 - self.sgr):
+                se[j] = 1.0
+            else:
+                se[j] = (sw[j] - self.swc) / (1.0 - self.swc - self.sgr)
+
+        krw = self.kuw * np.power(se,self.nw)
+        krg = self.kug * np.power(1.0-se,self.ng)
+        mob_w = krw / self.muw
+        mob_g = krg / self.mug
+        
+        return krw,krg,mob_w,mob_g
+    
+    def stars_Newtonian_model(self,sw,fmmob,SF,sfbet,simple=True):
+        """
+        This function returns the functions for Newtonian CMG-STARS model
+        """
+        if(isinstance(sw, float)):
+            sw = np.array([sw])
+        
+        krw,krg,mob_w,mob_g = self.frac_flow(sw)
+        
+        F2 = 0.5 + (1.0/np.pi) * np.arctan( sfbet * (sw - SF))
+        
+        mrf    = 1.0 + fmmob * F2
+        lt     = mob_w + (mob_g/mrf)
+        fg     = (mob_g / mrf) / lt
+
+        mu_app = 1.0 / lt
+        
+        if(simple):
+            return fg, mu_app, mrf, lt
+        else:
+            return fg, mu_app, mrf, lt, F2
+
+    def root_stars(self,mu_foam,sw,fmmob,SF,sfbet,epcap,fmcap):
+        """
+        This function is used to solve  mu_foam - mu_app, for CMG-STARS non-Newtonian
+        """
+        # Compute F2
+        F2 = self.stars_Newtonian_model(sw,fmmob,SF,sfbet,simple=False)[4]
+        
+        # Compute F5
+        Nca = (mu_foam * self.u) / self.sigma_wg
+        F5  = np.zeros((len(Nca)))
+        for i in range(len(Nca)):
+            if(Nca[i] < fmcap):
+                F5[i] = 1.0
+            else:
+                F5[i] = np.power(fmcap/Nca[i],epcap)
+        
+        # Compute mrf
+        mrf = 1.0 + fmmob * F2 * F5
+        
+        # Compute apparent viscosity
+        krw,krg,mob_w,mob_g = self.frac_flow(sw)
+        lt     = mob_w + (mob_g/mrf)
+        mu_app = 1.0 / lt
+        
+        return mu_foam - mu_app
+
+    def stars_non_Newtonian_model(self,sw,fmmob,SF,sfbet,epcap,fmcap,simple=True):
+        """
+        This function returns the functions for non-Newtonian CMG-STARS model
+        """
+        if(isinstance(sw, float)):
+            sw = np.array([sw])
+        
+        krw,krg,mob_w,mob_g = self.frac_flow(sw)
+        
+        # Compute F2
+        F2 = self.stars_Newtonian_model(sw,fmmob,SF,sfbet,simple=False)[4]
+        
+        # Make an initial guess for mu_apparent function
+        F5   = 1.0
+        mrf  = 1.0 + fmmob * F2 * F5
+        lt   = mob_w + (mob_g/mrf)
+        mu_0 = 1.0 / lt
+        
+        mu_app = optimize.fsolve(self.root_stars, mu_0, args=(sw,fmmob,SF,sfbet,epcap,fmcap))
+
+        # Compute F5, with mu_app
+        Nca = (mu_app * self.u) / self.sigma_wg
+        F5  = np.zeros((len(Nca)))
+        for i in range(len(Nca)):
+            if(Nca[i] < fmcap):
+                F5[i] = 1.0
+            else:
+                F5[i] = np.power(fmcap/Nca[i],epcap)
+        
+        # Compute mrf and results of fg, mu_app, and lt
+        mrf    = 1.0 + fmmob * F2 * F5
+        lt     = mob_w + (mob_g/mrf)
+        fg     = (mob_g / mrf) / lt
+        mu_app = 1.0 / lt
+        
+        if(simple):
+            return fg, mu_app, mrf, lt
+        else:
+            return fg, mu_app, mrf, lt, F2, F5
+
 
 ########################################################################
 # Auxiliary functions
 ########################################################################
+def load_parameters(filename):
+    """
+    :param filename: parameters file name
+    :return: dictionary with variables names and values
+    """
+    dpar = {}
+    with open(filename) as f:
+        for line in f:
+            (key, val) = line.split()
+            dpar[str(key)] = float(val)
+    return dpar
+
+def load_exp_data(filename):
+    """    
+    File format for data at particular coordinate' of reservoir
+    1st column: Foam quality (f_g)
+    2nd column: Apparent viscosity (mu_app)
+    """
+    data   = np.loadtxt(filename, comments="#")
+    fg     = data[:,0]
+    mu_app = data[:,1]
+    return fg,mu_app
+
+def water_saturation(fg,mu_app,mprop):
+    """
+    This function returns the experimental water saturation
+    """
+    swc = mprop[0]
+    sgr = mprop[1]
+    nw  = mprop[2]
+    kuw = mprop[4]
+    muw = mprop[6]
+    
+    x_sw = np.zeros(len(fg))
+    for k in range(len(fg)):
+        if(mu_app[k] > 1.0e-08):
+            x_sw[k] = swc + (1.0 - swc - sgr) * np.power( (muw * (1.0 - fg[k])) / (kuw * mu_app[k]) ,1.0/nw)
+    return x_sw
+
+def mrf_exp(mob_g,fg,mu_app):
+    """
+    This function returns the experimental MRF
+    """
+    mrf = np.ones(len(fg))
+    for k in range(len(fg)):
+        if(fg[k] > 1.0e-06):
+            mrf[k] = mob_g[k] * mu_app[k] / fg[k]
+    return mrf
+
 def model_labels(foam_model):
     """
     This function returns the labels for the foam models
@@ -73,14 +268,6 @@ def ranges_lmfit(foam_model,test_case,core_params):
             penalty                = 1.0e+00
         return p0,p1,p2,p3,p4,i0,i1,i2,i3,i4,penalty
 
-########################################################################
-# The execution
-########################################################################
-
-path = '/media/valdez/data/local_res/uq_res/'
-
-np.random.seed(1234)
-
 def save_trace(trace,foam_model,type_fit,sample_file):
     """
     Routine to save samples
@@ -100,6 +287,7 @@ def save_trace(trace,foam_model,type_fit,sample_file):
             p1 , p2 , p3 , sigma = trace[param_labels[0]] , trace[param_labels[1]] , trace[param_labels[2]] , trace['sigma']
             for k in range(len(p1)):
                 fid.write("%d \t %0.8e \t %0.8e \t %0.8e \t %0.8e\n" % (k+1,p1[k],p2[k],p3[k],sigma[k]))
+
     
     elif(type_fit == 'full_fit'):
         if(foam_model == 'STARS-FULL' and test_type == 'Complete'):
@@ -117,6 +305,12 @@ def save_trace(trace,foam_model,type_fit,sample_file):
     
     fid.close()
 
+########################################################################
+# The execution
+########################################################################
+
+# Define here a path to save the mcmc samples
+path = '/media/valdez/data/local_res/uq_res/'
 
 if __name__ == "__main__":
     
@@ -177,7 +371,7 @@ if __name__ == "__main__":
     
     # Get ranges for uniform priors DEFAULT
     if(foam_model == 'CMG-STARS'):
-        p0 , p1 , p2 , dummy , dummy , dummy , penalty = ranges_lmfit(foam_model,test_case,core_params)
+        p0 , p1 , p2 , dummy , dummy , dummy , dummy , dummy , dummy , dummy , penalty = ranges_lmfit('STARS-FULL',test_case,core_params)
         
     elif(foam_model == 'STARS-FULL'):
         p0 , p1 , p2 , p3 , p4 , dummy , dummy , dummy , dummy , dummy , penalty = ranges_lmfit(foam_model,test_case,core_params)
