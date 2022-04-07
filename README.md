@@ -1,20 +1,21 @@
-# UQ-SA_foams
+# UQ-foams-JPSE-PETROL27715
 
 This repository contains the mains functions to perform foam model adjustment
 to experimental data. The considered models are the Newtonian and non-Newtonian
 variants implemented in **CMG-STARS**. It was originally developed in Python 3.7.4
 The code is tested with the next libraries:
 
-1. Chaospy version 4.2.5 (Forward UQ-SA)
-2. PyMC3 version 3.8 (Inverse UQ)
-3. SALib version 1.3.13 (SA)
-4. Theano version 1.0.5 (Invese UQ)
-5. lmfit version 1.0.2 (deterministic Inverse problem)
+1. PyMC3 version 3.8
+2. Theano version 1.0.5
 
 # Description
-The Core parameters are listed in input_par_Alvarez2001.dat; the experimental
-records for foam quality and apparent viscosity (or pressure drop) can be found
-here Synthetic.dat or here Smooth.dat.
+
+You can find here the necessary data-files to perform model calibration. We
+have included three demo files. The Core sample properties are listed in
+input_par_Alvarez2001.dat. The experimental records for foam quality and apparent
+viscosity are available for two datasets Synthetic and Smooth.
+
+
 ---
 
 # Contact
@@ -43,6 +44,15 @@ doi={10.1007/s11242-021-01550-0},
 publisher={Springer International Publishing}
 }
 
+@phdthesis{ThesisARValdez,
+author = {Valdez, Andrés Ricardo},
+pages = {136},
+school = {PGMC-UFJF},
+title = {Inverse and forward uncertainty quantification of models for foam-assisted enhanced oil recovery},
+type = {Ph.D. Thesis},
+year = {2021}
+}
+
 @article{Valdez2021,
 title = {Assessing uncertainties and identifiability of foam displacement models employing different objective
 functions for parameter estimation},
@@ -51,3 +61,4 @@ journal={Journal of Petroleum Science and Engineering},
 year={2022},
 publisher={Elsevier}
 }
+
